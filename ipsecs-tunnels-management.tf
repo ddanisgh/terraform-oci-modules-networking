@@ -79,6 +79,20 @@ locals {
       network_configuration_category = local.one_dimension_ipsec_tunnels_management[ipsec_tunnel_management_key].network_configuration_category
     }
   }
+
+  # Regex to detect OCI Vault Secret OCIDs
+  vault_regex = "^ocid1\\.vaultsecret\\."
+
+  # Identify which tunnels need a lookup
+  tunnels_requiring_vault = {
+    for k, v in local.one_dimension_ipsec_tunnels_management : k => v
+    if v.shared_secret != null ? can(regex(local.vault_regex, v.shared_secret)) : false
+  }
+}
+
+data "oci_secrets_secretbundle" "bundle" {
+  for_each  = local.tunnels_requiring_vault
+  secret_id = each.value.shared_secret
 }
 
 resource "oci_core_ipsec_connection_tunnel_management" "these" {
@@ -113,7 +127,13 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
     }
   }
 
-  shared_secret = each.value.shared_secret
+  #shared_secret = each.value.shared_secret
+  shared_secret = contains(keys(data.oci_secrets_secretbundle.bundle), each.key) ? (
+    # We check if the list has at least one element before accessing index 0
+    length(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content) > 0 ? (
+      base64decode(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content.0.content)
+    ) : "ERROR_SECRET_BUNDLE_EMPTY" # Fallback if secret exists but content is missing
+  ) : each.value.shared_secret
   ike_version   = each.value.ike_version
 
   dynamic "phase_one_details" {
