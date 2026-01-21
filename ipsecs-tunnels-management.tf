@@ -127,12 +127,16 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
     }
   }
 
+  lifecycle {
+    precondition {
+      condition     = !contains(keys(data.oci_secrets_secretbundle.bundle), each.key) || length(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content) > 0
+      error_message = "Secret bundle content for tunnel '${each.key}' is empty; cannot set shared_secret."
+    }
+  }
+
   #shared_secret = each.value.shared_secret
   shared_secret = contains(keys(data.oci_secrets_secretbundle.bundle), each.key) ? (
-    # We check if the list has at least one element before accessing index 0
-    length(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content) > 0 ? (
-      base64decode(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content.0.content)
-    ) : "ERROR_SECRET_BUNDLE_EMPTY" # Fallback if secret exists but content is missing
+    base64decode(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content.0.content)
   ) : each.value.shared_secret
   ike_version   = each.value.ike_version
 
