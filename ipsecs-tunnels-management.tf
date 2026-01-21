@@ -86,7 +86,7 @@ locals {
   # Identify which tunnels need a lookup
   tunnels_requiring_vault = {
     for k, v in local.one_dimension_ipsec_tunnels_management : k => v
-    if v.shared_secret != null ? can(regex(local.vault_regex, v.shared_secret)) : false
+    if v.shared_secret != null && can(regex(local.vault_regex, v.shared_secret))
   }
 }
 
