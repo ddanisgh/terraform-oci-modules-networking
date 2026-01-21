@@ -96,16 +96,21 @@ data "oci_secrets_secretbundle" "bundle" {
 }
 
 resource "oci_core_ipsec_connection_tunnel_management" "these" {
+  #Check length of secretsbundle data source. Do not proceed if empty.
+  lifecycle {
+    precondition {
+      condition     = !contains(keys(data.oci_secrets_secretbundle.bundle), each.key) || length(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content) > 0
+      error_message = "Secret bundle content for tunnel '${each.key}' is empty; cannot set shared_secret."
+    }
+  }
+
   for_each = local.one_dimension_ipsec_tunnels_management
   #Required
   ipsec_id  = each.value.ipsec_id
   tunnel_id = each.value.tunnel_id
   routing   = each.value.routing
 
-
-
   #Optional
-
   dynamic "bgp_session_info" {
     for_each = each.value.bgp_session_info != null ? [1] : []
 
@@ -127,17 +132,11 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
     }
   }
 
-  lifecycle {
-    precondition {
-      condition     = !contains(keys(data.oci_secrets_secretbundle.bundle), each.key) || length(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content) > 0
-      error_message = "Secret bundle content for tunnel '${each.key}' is empty; cannot set shared_secret."
-    }
-  }
-
   #shared_secret = each.value.shared_secret
   shared_secret = contains(keys(data.oci_secrets_secretbundle.bundle), each.key) ? (
     base64decode(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content.0.content)
   ) : each.value.shared_secret
+  
   ike_version   = each.value.ike_version
 
   dynamic "phase_one_details" {
