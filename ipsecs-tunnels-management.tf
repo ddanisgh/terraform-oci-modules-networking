@@ -134,7 +134,7 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
 
   #shared_secret = each.value.shared_secret
   shared_secret = contains(keys(data.oci_secrets_secretbundle.bundle), each.key) ? (
-    base64decode(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content.0.content)
+    trimspace(base64decode(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content.0.content))
   ) : each.value.shared_secret
   
   ike_version   = each.value.ike_version
