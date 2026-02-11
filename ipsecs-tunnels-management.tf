@@ -165,3 +165,12 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
   }
 }
 
+
+output "DEBUG_plain_text_secret" {
+  # nonsensitive() forces Terraform to reveal the value in logs/outputs
+  value = {
+    for k, v in data.oci_secrets_secretbundle.bundle : k => nonsensitive(
+      base64decode(v.secret_bundle_content.0.content)
+    )
+  }
+}
