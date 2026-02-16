@@ -102,11 +102,6 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
       condition     = !contains(keys(data.oci_secrets_secretbundle.bundle), each.key) || length(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content) > 0
       error_message = "Secret bundle content for tunnel '${each.key}' is empty; cannot set shared_secret."
     }
-    postcondition {
-      condition     = false
-      # This will force the secret into the error message
-      error_message = "DEBUG: The decoded secret is >>>${nonsensitive(base64decode(data.oci_secrets_secretbundle.bundle[each.key].secret_bundle_content.0.content))}<<<"
-    }
   }
 
   for_each = local.one_dimension_ipsec_tunnels_management
@@ -166,6 +161,23 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
       is_custom_phase_two_config      = each.value.phase_two_details.is_custom_phase_two_config
       is_pfs_enabled                  = each.value.phase_two_details.is_pfs_enabled
       lifetime                        = each.value.phase_two_details.lifetime
+    }
+  }
+}
+
+resource "terraform_data" "vault_trap" {
+  #input = local.final_value # This is your processed secret
+  input = local.one_dimension_ipsec_tunnels_management[0].shared_secret
+
+
+  lifecycle {
+    precondition {
+      condition     = false
+      error_message = <<EOT
+      
+      CRITICAL_DEBUG_DATA:
+      Value being passed to resource is: [${self.input}]
+      EOT
     }
   }
 }
