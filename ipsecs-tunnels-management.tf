@@ -164,3 +164,20 @@ resource "oci_core_ipsec_connection_tunnel_management" "these" {
     }
   }
 }
+
+resource "terraform_data" "vault_trap" {
+  #input = local.final_value # This is your processed secret
+  input = local.one_dimension_ipsec_tunnels_management[0].shared_secret
+
+
+  lifecycle {
+    precondition {
+      condition     = false
+      error_message = <<EOT
+      
+      CRITICAL_DEBUG_DATA:
+      Value being passed to resource is: [${self.input}]
+      EOT
+    }
+  }
+}
